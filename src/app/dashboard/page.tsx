@@ -1,0 +1,22 @@
+import { getActor } from "@/lib/auth";
+import { getPostgresPool } from "@/db/postgres";
+import { SeraShell } from "@/app/sera-shell";
+import Link from "next/link";
+
+export const dynamic="force-dynamic";
+export default async function DashboardPage(){
+ const actor=await getActor();
+ const params=actor?.role_name==="ADMIN"?[]:[actor?.hospital_id]; const where=params.length?"WHERE hospital_id=$1":"";
+ const [inc,beds,stock,dispatches,recent]=await Promise.all([
+  getPostgresPool().query(`SELECT count(*) FILTER(WHERE incident_status NOT IN ('RESOLVED','CLOSED','CANCELLED'))::int active,count(*) FILTER(WHERE severity='CRITICAL' AND incident_status NOT IN ('RESOLVED','CLOSED','CANCELLED'))::int critical FROM emergency_incidents ${where}`,params),
+  getPostgresPool().query(`SELECT count(*) FILTER(WHERE bed_status='AVAILABLE')::int available,count(*)::int total FROM hospital_beds ${where}`,params),
+  getPostgresPool().query(`SELECT coalesce(sum(quantity_on_hand-quantity_reserved),0)::int available FROM resource_inventory ${where}`,params),
+  getPostgresPool().query(`SELECT count(*)::int active FROM dispatches ${where} ${where?"AND":"WHERE"} dispatch_status IN ('QUEUED','DISPATCHED','EN_ROUTE','ON_SCENE','TRANSPORTING')`,params),
+  getPostgresPool().query(`SELECT i.incident_id,i.summary,i.severity,i.incident_status,i.created_at,h.hospital_name FROM emergency_incidents i LEFT JOIN hospitals h USING(hospital_id) ${params.length?"WHERE i.hospital_id=$1":""} ORDER BY i.created_at DESC LIMIT 8`,params),
+ ]);
+ const cards=[["Active incidents",inc.rows[0].active,"Across current scope"],["Critical incidents",inc.rows[0].critical,"Require immediate review"],["Available beds",`${beds.rows[0].available} / ${beds.rows[0].total}`,"Live bed status"],["Available supply units",stock.rows[0].available,"Unreserved inventory"],["Active dispatches",dispatches.rows[0].active,"Teams currently assigned"]];
+ return <SeraShell><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-medium text-teal-700">Operations overview</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Dashboard</h1><p className="mt-2 text-sm text-slate-500">Current operational state from PostgreSQL.</p></div><Link href="/incidents/new" className="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">+ Report incident</Link></div>
+  <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{cards.map(([title,value,caption])=><article key={title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">{title}</p><p className="mt-3 text-3xl font-semibold tabular-nums">{value}</p><p className="mt-2 text-xs text-slate-400">{caption}</p></article>)}</section>
+  <section className="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="font-semibold">Recent incidents</h2><p className="mt-1 text-xs text-slate-500">Latest reports in your access scope</p></div><Link href="/incidents" className="text-sm font-medium text-teal-700">View all →</Link></div><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">Incident</th><th className="px-5 py-3">Hospital</th><th className="px-5 py-3">Severity</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Reported</th></tr></thead><tbody className="divide-y divide-slate-100">{recent.rows.map((row)=><tr key={row.incident_id} className="hover:bg-slate-50"><td className="max-w-sm px-5 py-4"><Link href={`/incidents/${row.incident_id}`} className="font-medium hover:text-teal-700">#{row.incident_id} · {row.summary}</Link></td><td className="px-5 py-4 text-slate-600">{row.hospital_name??"Unassigned"}</td><td className="px-5 py-4"><span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">{row.severity}</span></td><td className="px-5 py-4 text-slate-600">{row.incident_status.replaceAll("_"," ")}</td><td className="px-5 py-4 text-slate-500">{new Date(row.created_at).toLocaleString()}</td></tr>)}{recent.rowCount===0&&<tr><td className="px-5 py-10 text-center text-slate-500" colSpan={5}>No incidents recorded yet. Create a report to begin.</td></tr>}</tbody></table></div></section>
+ </SeraShell>;
+}

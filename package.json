@@ -1,0 +1,42 @@
+{
+  "name": "smart-emergency-response",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:preflight": "node --env-file=.env.local scripts/preflight.mjs",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
+    "db:seed": "node --env-file=.env.local scripts/seed.mjs",
+    "db:demo:postgres": "node --env-file=.env.local scripts/dbms-postgres-demo.mjs",
+    "db:demo:mongo": "node --env-file=.env.local db/queries/MONGODB_DBMS_DEMO.js",
+    "db:outbox:worker": "node --env-file=.env.local scripts/outbox-worker.mjs",
+    "test": "node --env-file=.env.local --test tests/*.test.mjs db/tests/*.test.mjs",
+    "test:db": "node --env-file=.env.local --test db/tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "argon2": "^0.45.2",
+    "mongodb": "^7.8.0",
+    "next": "^16.4.4",
+    "pg": "^8.23.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

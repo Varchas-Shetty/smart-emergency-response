@@ -1,0 +1,6 @@
+"use client";
+
+import {useRouter} from "next/navigation";import{useState}from"react";
+import runApplicationAction from "@/app/actions";
+type Incident={incident_id:number;summary:string};
+export function ReserveForm({inventoryId,incidents}:{inventoryId:number;incidents:Incident[]}){const router=useRouter();const[error,setError]=useState("");return <form className="flex min-w-64 flex-wrap gap-1" onSubmit={async event=>{event.preventDefault();const form=event.currentTarget;const values=new FormData(form);const incidentId=Number(values.get("incidentId"));const result=await runApplicationAction({type:"allocation.reserve",id:incidentId,values:{inventoryId,quantity:Number(values.get("quantity"))}});if(!result.ok){setError(result.error??"Reservation failed");return}setError("");form.reset();router.refresh()}}><select name="incidentId" required className="rounded border p-1 text-xs">{incidents.map(i=><option key={i.incident_id} value={i.incident_id}>#{i.incident_id} {i.summary.slice(0,24)}</option>)}</select><input name="quantity" type="number" min="1" defaultValue="1" required className="w-16 rounded border p-1 text-xs"/><button className="rounded bg-teal-700 px-2 py-1 text-xs text-white">Reserve</button>{error&&<span role="alert" className="text-xs text-rose-700">{error}</span>}</form>}
